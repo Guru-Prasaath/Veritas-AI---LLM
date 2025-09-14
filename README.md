@@ -1,4 +1,4 @@
-Veritas AI - Advanced Text Analysis Tool
+Veritas AI(Version 1) - Advanced Text Analysis Tool
 Veritas AI is a modern, web-based application designed for journalists, researchers, and discerning readers to analyze text for misinformation, bias, and rhetorical manipulation. It leverages the power of a Large Language Model (LLM) to provide a nuanced, data-driven breakdown of content in a sleek, professional user interface.
 
 Features
