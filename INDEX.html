@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veritas AI - Fake News Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Hide scrollbar for textarea but allow scrolling */
+        textarea::-webkit-scrollbar {
+            display: none;
+        }
+        textarea {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Custom animation for results appearing */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300 antialiased">
+
+    <!-- Main Container -->
+    <div class="container mx-auto max-w-6xl px-4 py-8 md:py-12">
+        
+        <!-- Header -->
+        <header class="text-center mb-8 md:mb-12">
+            <div class="inline-flex items-center gap-3">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-400"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-white">Veritas AI</h1>
+            </div>
+            <p class="text-slate-400 mt-2 max-w-2xl mx-auto">An advanced analytical tool for journalists and researchers. Deconstruct text for misinformation, bias, and rhetorical manipulation.</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="bg-slate-800/50 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700 ring-1 ring-inset ring-slate-700/50">
+            <div>
+                <label for="text-input" class="sr-only">Text to analyze</label>
+                <textarea id="text-input" rows="8" class="w-full p-4 bg-slate-900 rounded-lg border-2 border-slate-700 focus:ring-2 focus:ring-cyan-500 focus:outline-none focus:border-cyan-500 transition-all resize-none text-slate-200" placeholder="Paste news article, social media post, or any text here..."></textarea>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="analyze-button" class="bg-cyan-500 text-slate-900 font-semibold px-6 py-3 rounded-lg hover:bg-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-300/50 transition-all duration-300 flex items-center gap-2 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed">
+                    <svg id="button-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><path d="M21 3v6h-6"/><path d="M3 12a9 9 0 0 1 12.46-8.22"/><path d="M3 21v-6h6"/><path d="M12 18a9 9 0 0 0 8.22-5.54"/></svg>
+                    <span id="button-text">Analyze</span>
+                    <div id="loading-spinner" class="hidden animate-spin rounded-full h-5 w-5 border-b-2 border-slate-900"></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading & Error State -->
+        <div id="status-container" class="text-center py-10 hidden">
+            <p id="status-message" class="text-slate-400"></p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-container" class="mt-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- Left Column: Score, Summary, Source -->
+                <div class="lg:col-span-1 space-y-8">
+                    <!-- Credibility Score Card -->
+                    <div class="bg-slate-800 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700 text-center">
+                        <h2 class="text-lg font-semibold text-white mb-4">Credibility Score</h2>
+                        <div id="credibility-gauge" class="relative w-40 h-40 rounded-full grid place-content-center text-4xl font-bold text-white" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                            <span id="score-value">0</span><span class="text-2xl">%</span>
+                        </div>
+                        <p id="score-verdict" class="mt-4 text-slate-300 font-medium"></p>
+                    </div>
+
+                    <!-- Verdict Summary Card -->
+                    <div class="bg-slate-800 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700">
+                        <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-cyan-400"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.5A4.5 4.5 0 0 0 18 2h-3.26a4.5 4.5 0 0 0-1.74 0H9a4.5 4.5 0 0 0-4.5 4.5C4.5 14.44 7.5 22 10.5 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M12 2v7"/></svg>
+                            AI Summary
+                        </h2>
+                        <p id="verdict-summary" class="text-slate-400 leading-relaxed"></p>
+                    </div>
+                     <!-- Source Analysis -->
+                    <div class="bg-slate-800 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700">
+                        <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-cyan-400"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                            Source
+                        </h2>
+                        <p id="source-type" class="text-slate-300 font-semibold"></p>
+                        <p id="source-reputation" class="text-slate-400 text-sm mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Detailed Analysis -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- Linguistic Analysis -->
+                    <div class="bg-slate-800 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700">
+                         <h2 class="text-lg font-semibold text-white mb-5">Linguistic Analysis</h2>
+                         <div class="space-y-6">
+                             <div>
+                                 <h3 class="font-semibold text-slate-300 mb-2">Bias Meter</h3>
+                                 <div class="w-full bg-slate-700 rounded-full h-2.5 relative">
+                                    <div class="absolute top-0 h-full w-0.5 bg-slate-500" style="left: 50%;"></div>
+                                    <div id="bias-indicator" class="h-2.5 rounded-full absolute top-0" style="width: 20%; left: 40%;"></div>
+                                 </div>
+                                 <div class="flex justify-between text-xs text-slate-400 mt-1">
+                                     <span>Left</span>
+                                     <span>Center</span>
+                                     <span>Right</span>
+                                 </div>
+                                 <p id="bias-analysis" class="text-center text-sm font-semibold text-slate-200 mt-2"></p>
+                             </div>
+                             <div>
+                                 <h3 class="font-semibold text-slate-300">Tone</h3>
+                                 <div id="tone-analysis" class="flex flex-wrap gap-2 mt-2"></div>
+                             </div>
+                             <div>
+                                 <h3 class="font-semibold text-slate-300">Persuasive Techniques</h3>
+                                 <div id="techniques-analysis" class="flex flex-wrap gap-2 mt-2"></div>
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- Claim Fact-Checking -->
+                     <div class="bg-slate-800 p-6 rounded-2xl shadow-lg shadow-black/20 border border-slate-700">
+                        <h2 class="text-lg font-semibold text-white mb-4">Key Claims Deconstruction</h2>
+                        <div id="claims-analysis" class="space-y-5">
+                            <!-- Claims will be injected here by JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const analyzeButton = document.getElementById('analyze-button');
+        const buttonText = document.getElementById('button-text');
+        const buttonIcon = document.getElementById('button-icon');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const textInput = document.getElementById('text-input');
+        const statusContainer = document.getElementById('status-container');
+        const statusMessage = document.getElementById('status-message');
+        const resultsContainer = document.getElementById('results-container');
+        const credibilityGauge = document.getElementById('credibility-gauge');
+        const scoreValue = document.getElementById('score-value');
+        const scoreVerdict = document.getElementById('score-verdict');
+        const verdictSummary = document.getElementById('verdict-summary');
+        const biasAnalysis = document.getElementById('bias-analysis');
+        const toneAnalysis = document.getElementById('tone-analysis');
+        const techniquesAnalysis = document.getElementById('techniques-analysis');
+        const claimsAnalysis = document.getElementById('claims-analysis');
+        const sourceType = document.getElementById('source-type');
+        const sourceReputation = document.getElementById('source-reputation');
+        const biasIndicator = document.getElementById('bias-indicator');
+
+        // --- Event Listeners ---
+        analyzeButton.addEventListener('click', handleAnalysis);
+
+        async function handleAnalysis() {
+            const text = textInput.value.trim();
+            if (!text) {
+                showStatus('Please enter some text to analyze.', true);
+                return;
+            }
+
+            setLoadingState(true);
+            hideResults();
+            showStatus('Analyzing with AI... This may take a moment.', false);
+
+            try {
+                // The system prompt defines the AI's persona and task, including the JSON structure.
+                const systemPrompt = `
+                    You are an expert AI analyst specializing in misinformation, linguistics, and media bias, designed for journalists.
+                    Your task is to analyze the provided text and return a structured JSON object.
+                    Do not include any text before or after the JSON object. Do not use markdown backticks.
+                    The JSON object must have the following structure:
+                    {
+                      "credibility_score": <An integer between 0 and 100 representing the likelihood of credibility>,
+                      "verdict_summary": "<A concise, one or two-sentence summary of your findings>",
+                      "main_claims": [
+                        {"claim": "<Identified claim 1>", "assessment": "<Your brief, neutral assessment of this claim's factual basis or framing>"},
+                        {"claim": "<Identified claim 2>", "assessment": "<...and so on for up to 4 main claims>"}
+                      ],
+                      "source_analysis": {
+                        "source_type": "<'Direct Text Input', or the domain if a URL was hypothetically provided>",
+                        "reputation": "<'N/A for direct text', or a brief analysis of the source's reputation if known>"
+                      },
+                      "linguistic_analysis": {
+                        "bias": "<A descriptive label from this specific list: 'Strong Left', 'Left-Leaning', 'Center', 'Right-Leaning', 'Strong Right', 'Biased (Non-political)'>",
+                        "tone": ["<An array of strings describing the tone, e.g., 'Objective', 'Sensationalist', 'Alarmist', 'Satirical', 'Formal'>"],
+                        "persuasive_techniques": ["<An array of strings identifying any techniques used, e.g., 'Appeal to Emotion', 'Ad Hominem', 'Loaded Language', 'False Dichotomy', 'None Identified'>"]
+                      }
+                    }
+                `;
+
+                // The user query contains the text to be analyzed.
+                const userQuery = `Please analyze the following text:\n\n---\n\n${text}`;
+
+                const apiKey = ""; // Provide your API key here
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    contents: [{ parts: [{ text: userQuery }] }],
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const jsonText = candidate.content.parts[0].text;
+                    const parsedData = JSON.parse(jsonText);
+                    displayResults(parsedData);
+                    hideStatus();
+                } else {
+                    throw new Error('No valid content received from the API.');
+                }
+                
+            } catch (error) {
+                console.error('Analysis Error:', error);
+                showStatus(`An error occurred: ${error.message}. Please try again.`, true);
+            } finally {
+                setLoadingState(false);
+            }
+        }
+        
+        function displayResults(data) {
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.classList.add('fade-in');
+
+            // --- 1. Credibility Score & Gauge ---
+            const score = parseInt(data.credibility_score, 10) || 0;
+            scoreValue.textContent = score;
+            
+            let scoreColorClass, verdictText;
+            if (score >= 75) {
+                scoreColorClass = 'bg-green-500/10 text-green-400';
+                verdictText = 'Likely Credible';
+            } else if (score >= 40) {
+                scoreColorClass = 'bg-yellow-500/10 text-yellow-400';
+                verdictText = 'Caution Advised';
+            } else {
+                scoreColorClass = 'bg-red-500/10 text-red-400';
+                verdictText = 'Likely Misleading';
+            }
+            // Use conic-gradient for the gauge background
+            const gaugeColor = score >= 75 ? '#34d399' : (score >= 40 ? '#f59e0b' : '#ef4444');
+            credibilityGauge.style.background = `radial-gradient(closest-side, #1e293b 85%, transparent 86% 100%),
+                                                conic-gradient(from 180deg, ${gaugeColor} ${score}%, #334155 0)`;
+            credibilityGauge.setAttribute('aria-valuenow', score);
+            scoreVerdict.textContent = verdictText;
+            scoreVerdict.className = `mt-4 text-sm font-semibold px-3 py-1 rounded-full inline-block ${scoreColorClass}`;
+
+
+            // --- 2. Summary & Source ---
+            verdictSummary.textContent = data.verdict_summary || 'No summary available.';
+            const { source_type, reputation } = data.source_analysis;
+            sourceType.textContent = source_type || 'Unknown';
+            sourceReputation.textContent = reputation || 'N/A';
+
+
+            // --- 3. Linguistic Analysis ---
+            const { bias, tone, persuasive_techniques } = data.linguistic_analysis;
+            
+            // Bias Meter Logic
+            const biasConfig = {
+                'Strong Left': { left: '0%', width: '15%', color: 'bg-blue-500' },
+                'Left-Leaning': { left: '15%', width: '25%', color: 'bg-sky-500' },
+                'Center': { left: '40%', width: '20%', color: 'bg-teal-500' },
+                'Right-Leaning': { left: '60%', width: '25%', color: 'bg-orange-500' },
+                'Strong Right': { left: '85%', width: '15%', color: 'bg-red-500' },
+                'Biased (Non-political)': { left: '0%', width: '100%', color: 'bg-purple-500' }
+            };
+            const currentBias = biasConfig[bias] || biasConfig['Center'];
+            biasIndicator.style.left = currentBias.left;
+            biasIndicator.style.width = currentBias.width;
+            biasIndicator.className = `h-2.5 rounded-full absolute top-0 transition-all duration-500 ${currentBias.color}`;
+            biasAnalysis.textContent = bias || 'Not analyzed.';
+            
+            toneAnalysis.innerHTML = ''; // Clear previous
+            tone.forEach(t => {
+                const tag = document.createElement('span');
+                tag.className = 'bg-slate-700 text-slate-300 text-sm font-medium px-2.5 py-1 rounded-full';
+                tag.textContent = t;
+                toneAnalysis.appendChild(tag);
+            });
+            
+            techniquesAnalysis.innerHTML = ''; // Clear previous
+            persuasive_techniques.forEach(t => {
+                const tag = document.createElement('span');
+                tag.className = 'bg-cyan-500/10 text-cyan-300 text-sm font-medium px-2.5 py-1 rounded-full';
+                tag.textContent = t;
+                techniquesAnalysis.appendChild(tag);
+            });
+
+            // --- 4. Claims Analysis ---
+            claimsAnalysis.innerHTML = ''; // Clear previous
+            if (data.main_claims && data.main_claims.length > 0) {
+                 data.main_claims.forEach(item => {
+                    const claimEl = document.createElement('div');
+                    claimEl.className = 'border-l-4 border-cyan-500 pl-4 py-2 bg-slate-800/50 rounded-r-lg';
+                    claimEl.innerHTML = `
+                        <blockquote class="font-semibold text-slate-200 italic">“${item.claim}”</blockquote>
+                        <p class="text-slate-400 mt-2 pl-2 border-l-2 border-slate-700 ml-2">${item.assessment}</p>
+                    `;
+                    claimsAnalysis.appendChild(claimEl);
+                });
+            } else {
+                claimsAnalysis.innerHTML = '<p class="text-slate-500">No specific claims were extracted for analysis.</p>';
+            }
+        }
+
+        // --- UI Helper Functions ---
+        function setLoadingState(isLoading) {
+            analyzeButton.disabled = isLoading;
+            if (isLoading) {
+                buttonIcon.classList.add('hidden');
+                loadingSpinner.classList.remove('hidden');
+                buttonText.textContent = 'Analyzing...';
+            } else {
+                buttonIcon.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+                buttonText.textContent = 'Analyze';
+            }
+        }
+        
+        function showStatus(message, isError = false) {
+            statusContainer.classList.remove('hidden');
+            statusMessage.textContent = message;
+            statusMessage.className = isError ? 'text-red-400' : 'text-slate-400';
+        }
+        
+        function hideStatus() {
+            statusContainer.classList.add('hidden');
+        }
+
+        function hideResults() {
+            resultsContainer.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+
+
